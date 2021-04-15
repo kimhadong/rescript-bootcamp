@@ -15,5 +15,9 @@
   "devDependencies": {
     "bs-platform": "^8.2.0",
     "nodemon": "^2.0.4"
+  },
+  "dependencies": {
+    "@greenlabs/garter": "^0.5.0",
+    "yarn": "^1.22.10"
   }
 }
