@@ -1,5 +1,7 @@
 open Belt
 
+module History = Set.Int
+
 type handheld = Nop(int) | Acc(int) | Jmp(int)
 type progress = {
   value: int,
@@ -11,8 +13,7 @@ let day8_input =
   Node.Fs.readFileAsUtf8Sync("input/day8.txt")->Js.String2.trim->Js.String2.split("\n")
 
 let handheld = input =>
-  input
-  ->Array.keepMap(line => {
+  input->Array.keepMap(line => {
     let split_text = line->Js.String2.trim->Js.String2.split(" ")
     let key = split_text->Array.get(0)
     let value = split_text->Array.get(1)->Option.flatMap(v => v->Int.fromString)
@@ -28,81 +29,80 @@ let handheld = input =>
     }
   })
 
-let p1Result = (start) => {
-    let rec recursion = (history) => { 
-        
-        let isOverlap = (new, before) => before.log->Set.Int.has(new.cursor)        
-    
-        let nextState = (history) =>
-            switch day8_input->handheld->Array.getExn(history.cursor){
-            | Nop(_) => {
-                {value: history.value, cursor: history.cursor + 1, log: history.log->Set.Int.add(history.cursor)}
-            }
-            | Acc(y) => {
-                {value: history.value + y, cursor: history.cursor + 1, log: history.log->Set.Int.add(history.cursor)}
-            }
-            | Jmp(y) => {
-                {value: history.value, cursor: history.cursor + y, log: history.log->Set.Int.add(history.cursor)}
-            }
-            }
-        
-        let progressData = history->nextState
-        progressData->isOverlap(history) ? history.value : recursion(progressData)        
-    }
+let p1Result = start => {
+  let rec recursion = history => {
+    let isOverlap = (new, before) => before.log->Set.Int.has(new.cursor)
 
-    recursion(start)
+    let nextState = history =>
+      switch day8_input->handheld->Array.getExn(history.cursor) {
+      | Nop(_) => {
+          value: history.value,
+          cursor: history.cursor + 1,
+          log: history.log->Set.Int.add(history.cursor),
+        }
+      | Acc(y) => {
+          value: history.value + y,
+          cursor: history.cursor + 1,
+          log: history.log->Set.Int.add(history.cursor),
+        }
+      | Jmp(y) => {
+          value: history.value,
+          cursor: history.cursor + y,
+          log: history.log->Set.Int.add(history.cursor),
+        }
+      }
+
+    let progressData = history->nextState
+    progressData->isOverlap(history) ? history.value : recursion(progressData)
+  }
+
+  recursion(start)
 }
 
 p1Result({value: 0, cursor: 0, log: Set.Int.empty})->Js.log
 
-
-let p2Result = (start) => {
-    let rec recursion = (value, cursor, log, is_change) => {        
-        if(log->Set.Int.has(cursor)){
-            None
-        } else {
-            // 값을 뽑았을 때 없는 cursor
-            // 그게 정답
-            day8_input->handheld->Array.get(cursor)->Option.mapWithDefault(Some(value), x => {
-                switch x {
-                    | Nop(y) => {
-                        if is_change {
-                            recursion(value, cursor + 1, log->Set.Int.add(cursor), true)
-                        } else {
-                            // 처음, 정상 실행 => 재귀함수로 결국 여기에 리턴! 처음 시작과 끝 인지
-                            let returnValue = recursion(value, cursor + y, log->Set.Int.add(cursor), true)
-                            switch returnValue {
-                            | Some(v) => Some(v)
-                            | None => recursion(value, cursor + 1, log->Set.Int.add(cursor), false)
-                            }   
-                        }                                                
-                    }
-                    | Acc(y) => {
-                        recursion(value + y, cursor + 1, log->Set.Int.add(cursor), is_change)
-                    }
-                    | Jmp(y) => {   
-                        if is_change {
-                            recursion(value, cursor + y, log->Set.Int.add(cursor), true)
-                        } else {
-                            let returnValue = recursion(value, cursor + 1, log->Set.Int.add(cursor), true)
-                            switch returnValue {
-                            | Some(v) => Some(v)
-                            | None => recursion(value, cursor+y, log->Set.Int.add(cursor), false)
-                            }
-                        }                                  
-                    }                
-                }
-            })
-        }        
+let p2Result = start => {
+    // let input = ...
+  let rec recursion = (value, cursor, log, is_change) => {
+    if log->Set.Int.has(cursor) {
+      None
+    } else {
+      day8_input
+      ->handheld
+      ->Array.get(cursor)
+      ->Option.mapWithDefault(Some(value), x => {
+        switch x {
+        | Nop(y) => if is_change {
+            recursion(value, cursor + 1, log->Set.Int.add(cursor), true)
+          } else {
+            // 처음, 정상 실행 => 재귀함수로 결국 여기에 리턴! 처음 시작과 끝 인지
+            let returnValue = recursion(value, cursor + y, log->Set.Int.add(cursor), true)
+            switch returnValue {
+            | Some(v) => Some(v)
+            | None => recursion(value, cursor + 1, log->Set.Int.add(cursor), false)
+            }
+          }
+        | Acc(y) => recursion(value + y, cursor + 1, log->Set.Int.add(cursor), is_change)
+        | Jmp(y) => if is_change {
+            recursion(value, cursor + y, log->Set.Int.add(cursor), true)
+          } else {
+            let returnValue = recursion(value, cursor + 1, log->Set.Int.add(cursor), true)
+            switch returnValue {
+            | Some(v) => Some(v)
+            | None => recursion(value, cursor + y, log->Set.Int.add(cursor), false)
+            }
+          }
+        }
+      })
     }
+  }
 
-    recursion(start.value, start.cursor, start.log, false)
+  recursion(start.value, start.cursor, start.log, false)
 }
 
 p2Result({value: 0, cursor: 0, log: Set.Int.empty})->Js.log
 
 /*
-
 let rec run = (env, state) => {
     if (env.terminateFn(state)) {
         state
